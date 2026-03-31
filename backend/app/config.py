@@ -46,3 +46,7 @@ class Config:
 
     # CORS
     FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    ADMIN_URL = os.environ.get("ADMIN_URL", "http://localhost:3001")
+
+    # Production flag
+    JWT_COOKIE_SECURE = os.environ.get("FLASK_ENV", "development") == "production"

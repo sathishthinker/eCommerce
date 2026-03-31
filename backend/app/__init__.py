@@ -15,9 +15,13 @@ def create_app(config_class=Config):
 
     # CORS configuration
     frontend_url = app.config.get("FRONTEND_URL", "http://localhost:3000")
+    admin_url = app.config.get("ADMIN_URL", "http://localhost:3001")
+    allowed_origins = [frontend_url, admin_url, "http://localhost:3000", "http://localhost:3001"]
+    # Remove duplicates
+    allowed_origins = list(dict.fromkeys(allowed_origins))
     cors.init_app(
         app,
-        resources={r"/api/*": {"origins": [frontend_url, "http://localhost:3001"]}},
+        resources={r"/api/*": {"origins": allowed_origins}},
         supports_credentials=True,
     )
 
