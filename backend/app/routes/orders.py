@@ -2,10 +2,10 @@ import logging
 import uuid
 import hmac
 import hashlib
+import requests as http_requests
 from datetime import datetime
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-import razorpay
 from app.extensions import db
 from app.models import (
     Order, OrderItem, Payment, ProductVariant, Address, Coupon, User
@@ -189,18 +189,17 @@ def create_order():
         razorpay_order_id = None
         if payment_method == "razorpay":
             try:
-                rp_client = razorpay.Client(
+                rp_resp = http_requests.post(
+                    "https://api.razorpay.com/v1/orders",
+                    json={"amount": total, "currency": "INR", "payment_capture": 1},
                     auth=(
                         current_app.config["RAZORPAY_KEY_ID"],
                         current_app.config["RAZORPAY_KEY_SECRET"],
-                    )
+                    ),
+                    timeout=10,
                 )
-                rp_order = rp_client.order.create({
-                    "amount": total,
-                    "currency": "INR",
-                    "payment_capture": 1,
-                })
-                razorpay_order_id = rp_order["id"]
+                rp_resp.raise_for_status()
+                razorpay_order_id = rp_resp.json()["id"]
             except Exception as rp_exc:
                 logger.error("Razorpay order creation failed: %s", rp_exc)
                 return error_response("Payment gateway error. Please try again.", 502)
@@ -307,21 +306,13 @@ def verify_payment(order_id):
                 "razorpay_payment_id, razorpay_order_id, and razorpay_signature are required", 400
             )
 
-        # Verify signature
+        # Verify Razorpay signature using HMAC-SHA256
         try:
-            rp_client = razorpay.Client(
-                auth=(
-                    current_app.config["RAZORPAY_KEY_ID"],
-                    current_app.config["RAZORPAY_KEY_SECRET"],
-                )
-            )
-            rp_client.utility.verify_payment_signature({
-                "razorpay_order_id": razorpay_order_id_incoming,
-                "razorpay_payment_id": razorpay_payment_id,
-                "razorpay_signature": razorpay_signature,
-            })
-        except razorpay.errors.SignatureVerificationError:
-            return error_response("Payment signature verification failed", 400)
+            key_secret = current_app.config["RAZORPAY_KEY_SECRET"].encode("utf-8")
+            message = f"{razorpay_order_id_incoming}|{razorpay_payment_id}".encode("utf-8")
+            expected = hmac.new(key_secret, message, hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(expected, razorpay_signature):
+                return error_response("Payment signature verification failed", 400)
         except Exception as rp_exc:
             logger.error("Razorpay verification error: %s", rp_exc)
             return error_response("Payment verification failed", 500)
