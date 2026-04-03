@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, FormEvent } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { api } from '@/lib/api'
+import { api, apiFetch } from '@/lib/api'
 import { useToast } from '@/lib/toast-context'
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL']
@@ -53,10 +53,9 @@ export default function EditProductPage() {
 
   useEffect(() => {
     Promise.all([
-      api.admin.getProducts({ id }),
+      apiFetch<any>(`/admin/products/${id}`),
       api.admin.getCategories(),
-    ]).then(([prodRes, cats]) => {
-      const data = (prodRes as any).items?.find((p: any) => p.id === id) || prodRes
+    ]).then(([data, cats]) => {
       if (data) {
         setProduct(data)
         setName(data.name || '')
