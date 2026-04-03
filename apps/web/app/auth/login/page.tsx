@@ -1,14 +1,12 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 
-export default function LoginPage() {
+function LoginContent() {
   const { login, user, loading: authLoading } = useAuth();
   const { success, error } = useToast();
   const router = useRouter();
@@ -146,5 +144,20 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="w-full max-w-md p-8 space-y-4">
+          <div className="h-8 bg-gray-200 rounded animate-pulse mx-auto w-48" />
+          <div className="h-48 bg-gray-100 rounded-2xl animate-pulse" />
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
